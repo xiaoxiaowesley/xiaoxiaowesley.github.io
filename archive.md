@@ -9,7 +9,8 @@ title: Blog Archive
     {% for post in tag[1] %}
       {% assign images = post.content | markdownify | scan(/![.*]((.*))/) %}
       {% if images.size >0 %}
-      <img src="{{ images[0][0] }}" alt="{{ post.title }}">
+      {% assign image_url = images[0] | first %}
+      <img src="{{ post.url }}{{ image_url }}" alt="{{ post.title }}">
       {% endif %}
       <li><a href="{{ post.url }}">{{ post.date | date: "%B %Y" }} - {{ post.title }}</a></li>
     {% endfor %}
