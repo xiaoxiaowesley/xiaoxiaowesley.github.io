@@ -11,10 +11,11 @@ title: Blog Archive
       {% assign matches = post.content | scan: /![.*?]((.*?))/ %}
       {% if matches.size >0 %}
       {% assign image_url = matches[0][0] %}
-      {{ image_url }}
+        {{ image_url }}
       {% else %}
         No image found in the post
       {% endif %}
+      <div>hello!</div>
 
       <li><a href="{{ post.url }}">{{ post.date | date: "%B %Y" }} - {{ post.title }}</a></li>
     {% endfor %}
