@@ -1,6 +1,6 @@
 title: "Xiaoxiao's Blogs"
 author: "xiaoxiaowesley"
-description: "Some short description of your blog can go here." # This will show up in places like twitter, linkedin, etc, if you share your sites url as a post.
+description: "Code code nut." # This will show up in places like twitter, linkedin, etc, if you share your sites url as a post.
 
 # Email / Social media user names used by the minima theme:
 # All of these are optional and can be removed or commented out
@@ -20,7 +20,7 @@ github_username: "xiaoxiaowesley"
 #########################################################################################
 theme: "minima"
 
-rss: rss
+# rss: rss
 
 kramdown:
   syntax_highlighter_opts:
@@ -42,3 +42,6 @@ defaults:
       tags: Other
 
 favicon: assets/favicon.ico
+
+feed:
+ home_page_content: true
