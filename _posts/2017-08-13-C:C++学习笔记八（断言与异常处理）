@@ -1,0 +1,173 @@
+##断言
+断言是什么？简单而言，断言是对某种假设条件进行检查。
+C语言中，在assert.h中，断言被定义为宏的形式（`assert(expression)`），而不是函数。
+assert将通过检查表达式的值来决定是否需要终止程序，如果表达式为真（1）则忽略断言，程序继续运行。如果表达式为假（0），那么首先向错误流strerr打印一条错误信息，然后通过abort函数终止程序的运行。
+
+断言用法的简单例子：
+```
+int a,b;
+ a = 1;
+ b = 1 ;
+ assert(b!=0);
+ printf("a/b = %d\n",a/b);
+    
+```
+
+通过查看assert.h，NDEBUG宏打开状态时assert宏是可用的。
+默认情况下，assert宏只有在Debug版本才起作用，而在Release版本中将被忽略。但在许多操作系统的C程序中，Release版本中也将NDEBUG宏依然为打开状态。
+也便是说如果需要用到断言时，用户可以通过重定义自己的ASSERT。例子如下:
+
+```
+#ifdef DEBUG
+#define ASSERT(condition) \
+    do{ \
+        if(condition) \
+        {  \
+            NULL; \
+        } \
+        else{ \
+            assert(condition); \
+        }     \
+    }while(0)
+#else
+#define ASSERT(condition) NULL
+#endif
+```
+
+### 避免使用断言去检查程序错误
+在断言的使用中，应该遵循这样的一个规定：对来自系统内部的可靠数据使用断言，对于外部不可靠数据不能使用断言，而应该使用错误处理代码。
+换句话而言，断言是用来处理不应该发生的非法情况，而对于可能发生的应该使用错误处理代码。
+对于用户输入，与外部系统进行协议交互时的情况，也不能使用断言进行参数的判断，这种情况属于正常的错误检查。
+
+下面的例子说明了断言的使用场景
+```
+char * Strdup(const char * src){
+    assert(src!=NULL);
+    
+    char * result = NULL;
+    size_t len = strlen(src) +1;
+    result = (char *)malloc(len);
+    
+    assert(result != NULL);
+    return result;
+}
+```
+
+例子中第一个断言`assert(src!=NULL)`用于判断传入的参数的正确性，保证参数不为NULL
+第二个断言` assert(result != NULL)`检查函数返回值是否为NULL。
+例子中的两个断言，第一个是合法的，而第二个不合法，第一个合法是因为传入的参数必须不为NULL，断言如果成功，则说明调用代码存在问题，这属于非法的情况，此处属于断言的正确使用情况。
+第二个断言则不同，malloc对于返回NULL的情况属于调用正常情况，这应该使用正常的错误处理逻辑，不应该使用断言。
+
+###避免在断言表达式中使用改变上下文的语句
+在assert宏只有在Debug版本中情况下，应该避免断言表达式中使用改变环境的语句。
+
+如下例子因为断言语句的缘故，将导致不同的编译版本产生不同的结果。
+```
+int test(int i)
+{
+    assert(i++);
+    return i;
+}
+```
+因此应该避免在断言表达式中使用改变上下文环境的语句，也就是确保断言仅仅作为一个检查而存在，不应该参与正常语句的处理。
+
+##异常处理
+
+### 获取错误代码errno
+error 是用于表达不同错误值的一个全局变量。如果一个系统调用或库函数调用失败，可以通过errno的值来确定问题所在。
+
+因errno是一个全局变量，在调用不同系统调用或者库函数失败时都有可能修改它的值，因为在使用errno时，应先将其清0
+
+```
+    errno = 0;
+    
+    FILE *fp = fopen("test.txt", "r");
+    if (fp == NULL) {
+        
+        if (errno!=0) {
+            printf("error : %d \n",errno);
+            printf("错误信息 : %s \n",strerror(errno));
+        }
+        
+    }
+```
+但errno并不是所有的库函数都适合使用，就error而言库函数一般分为如下几种。
+####1.函数返回值无法判断错误，需进一步从errno中获取错误信息
+
+| 函数 | 返回值 | errno值 |
+| ------------- |:-------------:| -----:|
+| fgetwc、fputwc| WEOF | EILSEQ |
+| strtol、wcstol | LONG_MIN或LONG_MAX | ERANGE |
+| strtoll、wcstoll | LLONG_MIN或LLONG_MAX | ERANGE |
+| strtoul、wcstoul | ULONG_MAX | ERANGE |
+| strtoull、wcstoull | ULLONG_MAX | ERANGE |
+| strtoumax、wcstoumax | UINTLLONG_MAX | ERANGE |
+| strtod、wcstod | 0或者+-HUGE_VAL | ERANGE |
+| strtof、wcstof | 0或者+-HUGE_VALF | ERANGE |
+| strtold、wcstold | 0或者+-HUGE_VALL | ERANGE |
+| strtoimax、wcstoimax | IMAX_MIN或INTMAX_MAX | ERANGE |
+
+以字符串转成长整型函数strtol为例，
+在64位机器下，long长度为8字节，最大值LONG_MAX 为 0x7fffffffffffffff，当变量longStr 取超出长整型最大值的字符串"0xffffffffffffffff"和刚好等于最大值的字符串"0x7fffffffffffffff"时，函数的返回值都为相同的LONG_MAX。此时金聪返回值是无法判断函数的执行的成功与否。这个时要判断errno的值。如下例中，会打印出错误的信息。
+```
+    errno =0;
+    
+    //LONG_MAX的最大值为0x7fffffffffffffff
+    const char * longStr = "0xffffffffffffffff";
+    long ret = strtol(longStr,NULL,16);
+    if (ret == LONG_MAX) {
+        if (errno!=0) {
+            printf("error : %d \n",errno);
+            printf("错误信息 : %s \n",strerror(errno));
+        }else{
+            printf("等于long的最大值\n");
+        }
+    }
+```
+####2.函数返回值可知错误，errno可知更详细的错误
+| 函数 | 返回值 | errno值 |
+| ------------- |:-------------:| -----:|
+| ftell()| -1L | positive |
+| fgetpos()、fsetpos()| nonzero | positive |
+| mbrtowc()、mbsrtowcs()| (size_t)(-1)| EILSEQ |
+| signal()| SIG_ERR| positive |
+| wcrtomb()、wcsrtombs| (size_t)(-1)| EILSEQ |
+| mbrtoc16()、mbrtoc32()| (size_t)(-1)| EILSEQ |
+| c16rtomb()、cr21rtomb| (size_t)(-1)| EILSEQ |
+
+####3.有不同标准文档的库函数
+有些函数在不同的标准下对errno有不同的定义，例如fopen中便是一个例子。C99并没有对使用fopen是对errno做要求，但POSIX.1却声明了错误时返回NULL，并将错误码写入errno。
+
+### 避免使用goto语句
+goto语句有很多优点，例如goto语句可以非常方便的在局部作用域中跳出多层循环，执行如无条件的跳转。
+但正因为goto语句可以灵活的跳转，如果不加以限制它会破坏程序的结构化风格，使得代码难以理解与测试，同时不加限制的使用goto语句可能跳过变量的初始化、重要的计算等语句。
+
+以下例子在a小于0或者a小于等于100时会使用goto跳转到标记为Error的语句中。
+注意goto只能在局部作用域中跳转。
+```
+void testGoto(int a)
+{
+    if (a>0) {
+        if (a>100) {
+            printf(" a = %d \n",a);
+        }else{
+            goto Error;
+        }
+    }else{
+        goto Error;
+    }
+Error:
+    printf("Test Error a = %d \n",a);
+}
+```
+
+###避免使用setjmp与longjmp
+相比与goto语句只能在局部作用域中跳转，setjump与longjmp可以进行跨作用域跳转，也就是跨函数跳转。
+我们知道函数调用都以函数栈的形式进行调用与退出，既然要做到跨函数跳转，那便需要对当前的函数栈进行保存与还原，而setjmp的作用便是保存当前函数栈至类型jmp_buf结构体变量中，而longjmp的作用便是从此结构体中恢复，还原函数栈。
+而相对于goto仅在作用域内跳转，setjmp和longjmp则使代码更加的难以维护以及可读。
+
+
+##小结
+1. C语言中，使用函数的返回值来标志函数是否执行成功（默认成功返回1，失败返回0）当使用接口时，必须对函数进行正确性的验证，检查它的返回值，并且对每个错误的返回值进行相应的处理以及提示。
+2. 同样的道理，如果作为接口的开发方，需要对函数的各种情况反映到返回值中。
+3. 编写代码是，无论使用什么样的错误处理方式，发现程序中错误最好的方法便是执行程序，让数据在函数中流动，在判断逻辑中查找到函数出错的地方。
