@@ -1,3 +1,8 @@
+---
+layout: post
+tags: [c/c++]
+---
+
 ##断言
 断言是什么？简单而言，断言是对某种假设条件进行检查。
 C语言中，在assert.h中，断言被定义为宏的形式（`assert(expression)`），而不是函数。
